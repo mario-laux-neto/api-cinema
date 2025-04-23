@@ -8,7 +8,7 @@ import cors from 'cors';
 import { dirname  } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import './models/index.js';
-import Routes from './routs/index.js';
+import Routes from './routes/index.js';
 import { sequelize } from './config/postgres.js';
 
 
