@@ -6,16 +6,17 @@
 // import cargo from './cargoModel.js';
 // import sessoes from './sessoesModel.js';
 
-
-
 // (async () => {
-//     await padraoLugares.sync({ force: true });
-//     await cargo.sync({ force: true });
-//     await filme.sync({ force: true });
-//     await sala.sync({ force: true });
-//     await sessoes.sync({ force: true });
-//     await usuario.sync({ force: true });
-//     await usuarioSessao.sync({ force: true });
-    
-    
+//     // Essas você só descomenta se quiser alterar a estrutura de outras tabelas também:
+//     await padraoLugares.sync({ alter: true });
+//     await cargo.sync({ alter: true });
+//     await filme.sync({ alter: true });
+//     await sala.sync({ alter: true });
+//     await sessoes.sync({ alter: true });
+//     await usuario.sync({ alter: true });
+
+//     await usuarioSessao.sync({ alter: true });
+
+
+//     console.log('Tabelas sincronizadas com sucesso.');
 // })();

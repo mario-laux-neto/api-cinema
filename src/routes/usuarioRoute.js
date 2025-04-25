@@ -1,4 +1,5 @@
 import usuarioController from "../controllers/usuarioController.js";
+import authMiddleware from "../middlewares/autenticarTokenMiddleware.js";
 
 
 export default (app) => {
@@ -7,4 +8,6 @@ export default (app) => {
     app.post('/usuario', usuarioController.persist);
     app.patch('/usuario/:id', usuarioController.persist);
     app.delete('/usuario/:id', usuarioController.destroy);
-}
+    app.post('/usuario/login', usuarioController.login);
+    app.get('/usuario/token', authMiddleware, usuarioController.getDataByToken);
+};

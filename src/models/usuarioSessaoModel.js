@@ -35,6 +35,10 @@ const UsuarioSessao = sequelize.define(
         descricao: {
             type: DataTypes.STRING(100),
             allowNull: true 
+        },
+        cancelado: {  
+            type: DataTypes.BOOLEAN,
+            defaultValue: false, 
         }
     },
     {
@@ -45,7 +49,7 @@ const UsuarioSessao = sequelize.define(
     }
 );
 
-// Relacionamentos
+
 UsuarioSessao.belongsTo(Usuario, { foreignKey: 'idusuario', as: 'usuario' });
 UsuarioSessao.belongsTo(Sessao, { foreignKey: 'idsessao', as: 'sessao' });
 
