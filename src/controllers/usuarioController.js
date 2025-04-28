@@ -1,6 +1,9 @@
 import Usuario from '../models/usuarioModel.js';
+import Cargo from '../models/cargoModel.js'; 
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { randomInt } from 'crypto';
+import sendMail from '../utils/email.js';
 
 const get = async (req, res) => {
     try {
@@ -82,7 +85,7 @@ const login = async (req, res) => {
             });
         }
 
-        const comparacaoSenha = await bcrypt.compare(password, user.passwordHash);
+        const comparacaoSenha = await bcrypt.compare(password, user.password);
 
         if (comparacaoSenha) {
             const token = jwt.sign({
@@ -111,13 +114,12 @@ const login = async (req, res) => {
 
 const getDataByToken = async (req, res) => {
     try {
-       
         const token = req.headers.authorization?.split(' ')[1];
         if (!token) {
             return res.status(400).send({ message: 'Token não informado' });
         }
 
-        const usuario = jwt.verify(token, process.env.TOKEN_KEY);
+        const decoded = jwt.verify(token, process.env.TOKEN_KEY);
 
         const user = await Usuario.findOne({
             where: { id: decoded.idUsuario },
@@ -136,11 +138,6 @@ const getDataByToken = async (req, res) => {
         return res.status(200).send({
             message: 'Usuário e cargo encontrados com sucesso',
             data: user
-        });
-
-        return res.status(200).send({
-            message: 'Usuário autenticado com sucesso',
-            response: user
         });
 
     } catch (error) {
@@ -228,10 +225,123 @@ const destroy = async (req, res) => {
     }
 };
 
+// >>> NOVAS FUNÇÕES <<<
+
+// Enviar Código de Recuperação
+const enviarCodigoRecuperacao = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        const usuario = await Usuario.findOne({ where: { email } });
+
+        if (!usuario) {
+            return res.status(404).send({ message: 'Usuário não encontrado' });
+        }
+
+        const codigo = randomInt(100000, 999999).toString();
+        const expiracao = new Date(Date.now() + 30 * 60000); // 30 minutos
+
+        usuario.codigoRecuperacao = codigo;
+        usuario.codigoExpira = expiracao;
+        await usuario.save();
+
+        const body = `
+            <p>Seu código de recuperação de senha é: <b>${codigo}</b></p>
+            <p>Este código é válido por 30 minutos.</p>
+        `;
+
+        await sendMail(usuario.email, 'Recuperação de Senha', body, 'Código de Recuperação');
+
+        return res.status(200).send({ message: 'Código enviado para o e-mail.' });
+
+    } catch (error) {
+        return res.status(500).send({ message: error.message });
+    }
+};
+
+// Atualizar Senha com Código
+const atualizarSenha = async (req, res) => {
+    try {
+        const { email, codigoRecuperacao, novaSenha } = req.body;
+
+        const usuario = await Usuario.findOne({ where: { email } });
+
+        if (!usuario) {
+            return res.status(404).send({ message: 'Usuário não encontrado' });
+        }
+
+        if (usuario.codigoRecuperacao !== codigoRecuperacao) {
+            return res.status(400).send({ message: 'Código inválido' });
+        }
+
+        if (usuario.codigoExpira < new Date()) {
+            return res.status(400).send({ message: 'Código expirado' });
+        }
+
+        const senhaHash = await bcrypt.hash(novaSenha, 10);
+        usuario.password = senhaHash;
+        usuario.codigoRecuperacao = null;
+        usuario.codigoExpira = null;
+
+        await usuario.save();
+
+        return res.status(200).send({ message: 'Senha atualizada com sucesso.' });
+
+    } catch (error) {
+        return res.status(500).send({ message: error.message });
+    }
+};
+
+const enviarCodigo = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        // Verificar se o usuário existe no banco
+        const usuario = await Usuario.findOne({ where: { email } });
+
+        if (!usuario) {
+            return res.status(404).send({ message: 'Usuário não encontrado.' });
+        }
+
+        // Gerar código de recuperação
+        const codigo = crypto.randomBytes(3).toString('hex').toUpperCase();  // Código de 6 caracteres (ex: ABC123)
+
+        // Gerar tempo de expiração para 30 minutos
+        const expiracao = new Date();
+        expiracao.setMinutes(expiracao.getMinutes() + 30);
+
+        // Salvar o código de recuperação e data de expiração no banco
+        await usuario.update({
+            codigo_recuperacao: codigo,
+            codigo_expiracao: expiracao,
+        });
+
+        // Configurar o conteúdo do e-mail
+        const assunto = 'Código de Recuperação de Senha';
+        const corpo = `
+            <h3>Olá, ${usuario.nome}!</h3>
+            <p>Seu código de recuperação de senha é: <strong>${codigo}</strong></p>
+            <p>Este código é válido por 30 minutos.</p>
+        `;
+
+        // Enviar o e-mail
+        await sendMail(usuario.email, 'Suporte', corpo, assunto);
+
+        return res.status(200).send({
+            message: 'Código de recuperação enviado para o e-mail.',
+        });
+    } catch (error) {
+        return res.status(500).send({ message: error.message });
+    }
+};
+
 export default {
     get,
     persist,
     destroy,
     login,
-    getDataByToken
+    getDataByToken,
+    enviarCodigoRecuperacao,
+    atualizarSenha,
+    enviarCodigo,
 };

@@ -25,6 +25,12 @@ const Filme = sequelize.define(
             type: DataTypes.INTEGER, 
             allowNull: false,
         },
+        imagem: {
+            type: DataTypes.STRING,
+            allowNull: true,
+            field: 'imagem'
+          }
+          
     },
     {
         freezeTableName: true,
@@ -32,6 +38,7 @@ const Filme = sequelize.define(
         createdAt: 'create_at',
         updatedAt: 'update_at',
     }
+    
 );
 
 export default Filme;

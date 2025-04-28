@@ -23,16 +23,26 @@ const Usuario = sequelize.define(
             allowNull: false,
             unique: true,
         },
-        passwordHash:{
+        passwordHash: {
+            field: 'password_hash', 
             type: DataTypes.TEXT,
             allowNull: false,
         },
         estudante: {
             type: DataTypes.BOOLEAN,
-            defaultValue: false, 
-            allowNull: false
-          },
-
+            defaultValue: false,
+            allowNull: false,
+        },
+        codigoRecuperacao: {
+            field: 'codigo_recuperacao',
+            type: DataTypes.STRING(6),
+            allowNull: true,
+        },
+        codigoExpira: {
+            field: 'codigo_expiracao',
+            type: DataTypes.DATE,
+            allowNull: true,
+        }
     },
     {
         freezeTableName: true,
@@ -42,4 +52,4 @@ const Usuario = sequelize.define(
     }
 );
 
-export default  Usuario;
+export default Usuario;

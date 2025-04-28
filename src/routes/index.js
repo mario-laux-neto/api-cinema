@@ -5,6 +5,7 @@ import filmeRoute from "./filmeRoute.js";
 import salaRoute from "./salaRoute.js";  
 import usuarioSessoesRoutes from "./usuarioSessoesRoute.js";
 import sessoesRoute from "./sessoesRoute.js";
+import usuarioController from "../controllers/usuarioController.js";
 
 
 function Routes(app) {
@@ -15,8 +16,9 @@ function Routes(app) {
     salaRoute(app);  
     usuarioSessoesRoutes(app);
     sessoesRoute(app);
-
+    app.post('/usuario/recuperar-senha', usuarioController.enviarCodigo);
+};
     
-}
+
 
 export default Routes;

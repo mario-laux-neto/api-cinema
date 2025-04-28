@@ -1,133 +1,169 @@
 import Filme from '../models/filmeModel.js';
+import uploadFile from '../utils/uploadFile.js';  // seu arquivo de upload
+import fs from 'fs';
+import path from 'path';
 
-const get = async (req, res) => {
+const create = async (req, res) => {
     try {
-        const id = req.params.id ? req.params.id.toString().replace(/\D/g, '') : null;
+        const { nome, descricao, autor, duracao } = req.body;
 
-        if (!id) {
-            const response = await Filme.findAll({
-                order: [['id', 'desc']],
-            });
-
-            return res.status(200).send({
-                message: 'Filmes encontrados',
-                data: response,
-            });
-        }
-
-        const response = await Filme.findOne({
-            where: { id }
-        });
-
-        if (!response) {
-            return res.status(404).send('Filme não encontrado');
-        }
-
-        return res.status(200).send({
-            message: 'Filme encontrado',
-            data: response,
-        });
-
-    } catch (error) {
-        return res.status(500).send({
-            message: error.message
-        });
-    }
-};
-
-const create = async (corpo) => {
-    try {
-        const { nome, descricao, autor, duracao } = corpo;
-
-        const response = await Filme.create({
+        const filme = await Filme.create({
             nome,
             descricao,
             autor,
             duracao,
         });
 
-        return response;
+        if (req.files && req.files.imagem) {
+            const extensoesPermitidas = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+            const extensao = path.extname(req.files.imagem.name).toLowerCase();
 
+            if (!extensoesPermitidas.includes(extensao)) {
+                console.log('Tentativa de upload de arquivo não permitido:', extensao);
+                return res.status(400).send({ message: 'Apenas arquivos de imagem são permitidos.' });
+            }
+
+            const result = await uploadFile(req.files.imagem, {
+                tipo: 'imagem',
+                tabela: 'filmes',
+                id: filme.id,
+            });
+
+            if (result.type === 'erro') {
+                return res.status(400).send({ message: result.message });
+            }
+
+            const caminhoImagem = result.message.replace('public/', '');
+            filme.imagem = caminhoImagem;
+            await filme.save();
+        }
+
+        return res.status(201).send({
+            message: 'Filme criado com sucesso',
+            data: filme
+        });
     } catch (error) {
-        throw new Error(error.message);
+        return res.status(500).send({ message: error.message });
     }
 };
 
-const update = async (corpo, id) => {
+
+const update = async (req, res) => {
     try {
-        const response = await Filme.findOne({
-            where: { id }
+        const id = req.params.id;
+        const filme = await Filme.findByPk(id);
+
+        if (!filme) {
+            return res.status(404).send({ message: 'Filme não encontrado' });
+        }
+
+        Object.keys(req.body).forEach(key => {
+            filme[key] = req.body[key];
         });
 
-        if (!response) {
-            throw new Error('Filme não encontrado');
-        }
+        if (req.files && req.files.imagem) {
+            const extensoesPermitidas = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+            const extensao = path.extname(req.files.imagem.name).toLowerCase();
 
-        Object.keys(corpo).forEach((item) => response[item] = corpo[item]);
-        await response.save();
-        return response;
+            if (!extensoesPermitidas.includes(extensao)) {
+                console.log('Tentativa de upload de arquivo não permitido:', extensao);
+                return res.status(400).send({ message: 'Apenas arquivos de imagem são permitidos.' });
+            }
 
-    } catch (error) {
-        throw new Error(error.message);
-    }
-};
+            // Apaga imagem antiga se existir
+            if (filme.imagem) {
+                const caminhoAntigo = path.join('public', filme.imagem);
+                if (fs.existsSync(caminhoAntigo)) {
+                    fs.unlinkSync(caminhoAntigo);
+                }
+            }
 
-const persist = async (req, res) => {
-    try {
-        const id = req.params.id ? req.params.id.toString().replace(/\D/g, '') : null;
-
-        if (!id) {
-            const response = await create(req.body);
-            return res.status(201).send({
-                message: 'Filme criado com sucesso',
-                data: response
+            const result = await uploadFile(req.files.imagem, {
+                tipo: 'imagem',
+                tabela: 'filmes',
+                id: filme.id,
             });
+
+            if (result.type === 'erro') {
+                return res.status(400).send({ message: result.message });
+            }
+
+            const caminhoImagem = result.message.replace('public/', '');
+            filme.imagem = caminhoImagem;
         }
 
-        const response = await update(req.body, id);
+        await filme.save();
+
         return res.status(200).send({
             message: 'Filme atualizado com sucesso',
-            data: response
+            data: filme
         });
-
     } catch (error) {
-        return res.status(500).send({
-            message: error.message
-        });
+        return res.status(500).send({ message: error.message });
     }
 };
+
 
 const destroy = async (req, res) => {
     try {
-        const id = req.params.id ? req.params.id.toString().replace(/\D/g, '') : null;
+        const id = req.params.id;
+        const filme = await Filme.findByPk(id);
 
-        if (!id) {
-            return res.status(400).send('ID do filme não informado');
+        if (!filme) {
+            return res.status(404).send({ message: 'Filme não encontrado' });
         }
 
-        const response = await Filme.findOne({
-            where: { id }
-        });
-
-        if (!response) {
-            return res.status(404).send('Filme não encontrado');
+        // Excluir imagem se existir
+        if (filme.imagem) {
+            const caminhoImagem = path.join('public', filme.imagem);
+            if (fs.existsSync(caminhoImagem)) {
+                fs.unlinkSync(caminhoImagem);
+            }
         }
-        await response.destroy();
+
+        await filme.destroy();
 
         return res.status(200).send({
-            message: 'Filme excluído com sucesso',
-            data: response
+            message: 'Filme excluído com sucesso'
         });
-
     } catch (error) {
-        return res.status(500).send({
-            message: error.message
-        });
+        return res.status(500).send({ message: error.message });
     }
 };
 
+const get = async (req, res) => {
+    try {
+        const id = req.params.id;
+
+        if (!id) {
+            const filmes = await Filme.findAll({ order: [['id', 'desc']] });
+            return res.status(200).send({ data: filmes });
+        }
+
+        const filme = await Filme.findByPk(id);
+
+        if (!filme) {
+            return res.status(404).send({ message: 'Filme não encontrado' });
+        }
+
+        return res.status(200).send({ data: filme });
+    } catch (error) {
+        return res.status(500).send({ message: error.message });
+    }
+};
+const persist = async (req, res) => {
+    if (req.params.id) {
+        return update(req, res);
+    } else {
+        return create(req, res);
+    }
+};
+
+
 export default {
     get,
-    persist,
+    create,
+    update,
     destroy,
+    persist
 };
